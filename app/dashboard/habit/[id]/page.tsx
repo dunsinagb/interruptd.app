@@ -17,8 +17,6 @@ import { DashboardHeader } from "@/components/dashboard-header"
 import { EditHabitModal } from "@/components/edit-habit-modal"
 import { getTodayString } from "@/lib/date-utils"
 
-const STORAGE_KEY = "defaulted-habits-2025"
-
 export default function HabitDetailPage() {
   const params = useParams()
   const router = useRouter()
@@ -42,28 +40,47 @@ export default function HabitDetailPage() {
   }, [])
 
   useEffect(() => {
-    setMounted(true)
-    const saved = localStorage.getItem(STORAGE_KEY)
-    if (saved) {
-      const habits: Habit[] = JSON.parse(saved)
-      const found = habits.find((h) => h.id === habitId)
-      if (found) {
-        setHabit(found)
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch(`/api/patterns/${habitId}`)
+        const data = (await res.json()) as { pattern?: Habit; error?: string }
+        if (!res.ok || !data.pattern) throw new Error(data.error || "Not found")
+        if (!cancelled) setHabit(data.pattern)
+      } catch (e) {
+        console.error("[habit] failed to load", e)
+        if (!cancelled) setHabit(null)
+      } finally {
+        if (!cancelled) setMounted(true)
       }
+    })()
+    return () => {
+      cancelled = true
     }
   }, [habitId])
 
   const updateHabit = (updatedHabit: Habit) => {
     setHabit(updatedHabit)
-    const saved = localStorage.getItem(STORAGE_KEY)
-    if (saved) {
-      const habits: Habit[] = JSON.parse(saved)
-      const index = habits.findIndex((h) => h.id === habitId)
-      if (index !== -1) {
-        habits[index] = updatedHabit
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(habits))
+    ;(async () => {
+      try {
+        const res = await fetch(`/api/patterns/${habitId}`, {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            name: updatedHabit.name,
+            description: updatedHabit.description,
+            color: updatedHabit.color,
+            archived: updatedHabit.archived,
+          }),
+        })
+        const data = (await res.json()) as { pattern?: Habit; error?: string }
+        if (!res.ok || !data.pattern) throw new Error(data.error || "Failed to update")
+        setHabit(data.pattern)
+      } catch (e) {
+        console.error("[habit] failed to update", e)
+        alert("Unable to save changes. Please try again.")
       }
-    }
+    })()
   }
 
   const handleDayClick = (date: string) => {
@@ -85,19 +102,49 @@ export default function HabitDetailPage() {
       newDefaultedDays = [...habit.defaultedDays, { date, reason }]
     }
 
-    updateHabit({ ...habit, defaultedDays: newDefaultedDays })
+    ;(async () => {
+      try {
+        const res = await fetch(`/api/patterns/${habit.id}/days`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ date, reason }),
+        })
+        const data = (await res.json().catch(() => null)) as { error?: string } | null
+        if (!res.ok) throw new Error(data?.error || "Failed")
+        setHabit({ ...habit, defaultedDays: newDefaultedDays })
+      } catch (e) {
+        console.error("[habit] failed to save entry", e)
+        alert("Unable to save entry. Please try again.")
+      }
+    })()
   }
 
   const handleClearEntry = (date: string) => {
     if (!habit) return
     const newDefaultedDays = habit.defaultedDays.filter((d) => d.date !== date)
-    updateHabit({ ...habit, defaultedDays: newDefaultedDays })
+    ;(async () => {
+      try {
+        const res = await fetch(`/api/patterns/${habit.id}/days`, {
+          method: "DELETE",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ date }),
+        })
+        const data = (await res.json().catch(() => null)) as { error?: string } | null
+        if (!res.ok) throw new Error(data?.error || "Failed")
+        setHabit({ ...habit, defaultedDays: newDefaultedDays })
+      } catch (e) {
+        console.error("[habit] failed to clear entry", e)
+        alert("Unable to clear entry. Please try again.")
+      }
+    })()
   }
 
   const handleArchive = () => {
     if (!habit) return
-    updateHabit({ ...habit, archived: !habit.archived })
-    router.push("/dashboard")
+    ;(async () => {
+      updateHabit({ ...habit, archived: !habit.archived })
+      router.push("/dashboard")
+    })()
   }
 
   const stats = useMemo(() => {

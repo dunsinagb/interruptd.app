@@ -6,17 +6,26 @@ import { Button } from "@/components/ui/button"
 import { Sparkles, Loader2, MessageCircle } from "lucide-react"
 import type { Habit } from "@/lib/habit-data"
 
-const STORAGE_KEY = "defaulted-habits-2025"
-
 export function CoachContent() {
   const [habits, setHabits] = useState<Habit[]>([])
   const [coachMessage, setCoachMessage] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY)
-    if (saved) {
-      setHabits(JSON.parse(saved))
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch("/api/patterns")
+        const data = (await res.json()) as { patterns?: Habit[]; error?: string }
+        if (!res.ok) throw new Error(data.error || "Failed to load")
+        if (!cancelled) setHabits(data.patterns || [])
+      } catch (e) {
+        console.error("[coach] failed to load patterns", e)
+        if (!cancelled) setHabits([])
+      }
+    })()
+    return () => {
+      cancelled = true
     }
   }, [])
 

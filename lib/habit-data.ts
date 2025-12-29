@@ -1,24 +1,24 @@
-export interface InterruptedDay {
+export interface DefaultedDay {
   date: string // YYYY-MM-DD
   reason?: string
 }
 
-export interface Pattern {
+export interface Habit {
   id: string
   name: string
   description: string
   color: string
   createdAt: string
-  interruptedDays: InterruptedDay[]
+  defaultedDays: DefaultedDay[]
   archived?: boolean
 }
 
-// Keep legacy aliases for backwards compatibility
-export type DefaultedDay = InterruptedDay
-export type Default = Pattern
-export type Habit = Pattern
+// Legacy aliases for backwards compatibility
+export type InterruptedDay = DefaultedDay
+export type Pattern = Habit
+export type Default = Habit
 
-export function generateMockInterruptedDays(): InterruptedDay[] {
+export function generateMockDefaultedDays(): DefaultedDay[] {
   const reasons = [
     "Needed a mental break",
     "Social event",
@@ -32,7 +32,7 @@ export function generateMockInterruptedDays(): InterruptedDay[] {
     "Planned rest",
   ]
 
-  const interruptedDays: InterruptedDay[] = []
+  const defaultedDays: DefaultedDay[] = []
   const today = new Date()
   const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`
 
@@ -54,18 +54,18 @@ export function generateMockInterruptedDays(): InterruptedDay[] {
 
     selectedDays.forEach((day) => {
       const date = `2025-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`
-      interruptedDays.push({
+      defaultedDays.push({
         date,
         reason: reasons[Math.floor(Math.random() * reasons.length)],
       })
     })
   }
 
-  return interruptedDays.sort((a, b) => a.date.localeCompare(b.date))
+  return defaultedDays.sort((a, b) => a.date.localeCompare(b.date))
 }
 
-// Keep legacy function name for backwards compatibility
-export const generateMockDefaultedDays = generateMockInterruptedDays
+// Legacy alias for backwards compatibility
+export const generateMockInterruptedDays = generateMockDefaultedDays
 
 export const defaultHabits: Habit[] = [
   {
@@ -74,7 +74,7 @@ export const defaultHabits: Habit[] = [
     description: "Mindless browsing on social platforms",
     color: "rose",
     createdAt: "2025-01-01",
-    interruptedDays: generateMockInterruptedDays(),
+    defaultedDays: generateMockDefaultedDays(),
   },
   {
     id: "2",
@@ -82,7 +82,7 @@ export const defaultHabits: Habit[] = [
     description: "Eating processed or unhealthy snacks",
     color: "orange",
     createdAt: "2025-01-01",
-    interruptedDays: generateMockInterruptedDays(),
+    defaultedDays: generateMockDefaultedDays(),
   },
   {
     id: "3",
@@ -90,7 +90,7 @@ export const defaultHabits: Habit[] = [
     description: "Using devices before bed",
     color: "violet",
     createdAt: "2025-01-01",
-    interruptedDays: generateMockInterruptedDays(),
+    defaultedDays: generateMockDefaultedDays(),
   },
 ]
 

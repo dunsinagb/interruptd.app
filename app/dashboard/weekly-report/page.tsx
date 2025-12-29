@@ -17,8 +17,6 @@ import {
   Download,
 } from "lucide-react"
 
-const STORAGE_KEY = "defaulted-habits-2025"
-
 function getWeekRange(weeksAgo = 0) {
   const today = new Date()
   const dayOfWeek = today.getDay()
@@ -48,10 +46,23 @@ function WeeklyReportContent() {
   const [loadingAi, setLoadingAi] = useState(false)
 
   useEffect(() => {
-    setMounted(true)
-    const saved = localStorage.getItem(STORAGE_KEY)
-    if (saved) {
-      setHabits(JSON.parse(saved).filter((h: Habit) => !h.archived))
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch("/api/patterns")
+        const data = (await res.json()) as { patterns?: Habit[]; error?: string }
+        if (!res.ok) throw new Error(data.error || "Failed to load")
+        const parsed = (data.patterns || []).filter((h) => !h.archived)
+        if (!cancelled) setHabits(parsed)
+      } catch (e) {
+        console.error("[weekly-report] failed to load patterns", e)
+        if (!cancelled) setHabits([])
+      } finally {
+        if (!cancelled) setMounted(true)
+      }
+    })()
+    return () => {
+      cancelled = true
     }
   }, [])
 
