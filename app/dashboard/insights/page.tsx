@@ -7,8 +7,6 @@ import { DashboardHeader } from "@/components/dashboard-header"
 import { type Habit, getHabitColor } from "@/lib/habit-data"
 import { Sparkles, Loader2, TrendingUp, Calendar, Clock } from "lucide-react"
 
-const STORAGE_KEY = "defaulted-habits-2025"
-
 function InsightsContent() {
   const [habits, setHabits] = useState<Habit[]>([])
   const [selectedHabitId, setSelectedHabitId] = useState<string | null>(null)
@@ -17,14 +15,26 @@ function InsightsContent() {
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
-    setMounted(true)
-    const saved = localStorage.getItem(STORAGE_KEY)
-    if (saved) {
-      const parsed = JSON.parse(saved)
-      setHabits(parsed)
-      if (parsed.length > 0) {
-        setSelectedHabitId(parsed[0].id)
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch("/api/patterns")
+        const data = (await res.json()) as { patterns?: Habit[]; error?: string }
+        if (!res.ok) throw new Error(data.error || "Failed to load")
+        const parsed = data.patterns || []
+        if (!cancelled) {
+          setHabits(parsed)
+          setSelectedHabitId(parsed[0]?.id ?? null)
+        }
+      } catch (e) {
+        console.error("[insights] failed to load patterns", e)
+        if (!cancelled) setHabits([])
+      } finally {
+        if (!cancelled) setMounted(true)
       }
+    })()
+    return () => {
+      cancelled = true
     }
   }, [])
 

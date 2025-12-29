@@ -6,8 +6,6 @@ import { DashboardHeader } from "@/components/dashboard-header"
 import { type Habit, getHabitColor } from "@/lib/habit-data"
 import { PieChart, BarChart3, Calendar, TrendingDown, TrendingUp, Loader2 } from "lucide-react"
 
-const STORAGE_KEY = "defaulted-habits-2025"
-
 const DAYS_OF_WEEK = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
@@ -27,14 +25,26 @@ function AnalyticsContent() {
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
-    setMounted(true)
-    const saved = localStorage.getItem(STORAGE_KEY)
-    if (saved) {
-      const parsed = JSON.parse(saved).filter((h: Habit) => !h.archived)
-      setHabits(parsed)
-      if (parsed.length > 0) {
-        setSelectedHabitId(parsed[0].id)
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch("/api/patterns")
+        const data = (await res.json()) as { patterns?: Habit[]; error?: string }
+        if (!res.ok) throw new Error(data.error || "Failed to load")
+        const parsed = (data.patterns || []).filter((h) => !h.archived)
+        if (!cancelled) {
+          setHabits(parsed)
+          setSelectedHabitId(parsed[0]?.id ?? null)
+        }
+      } catch (e) {
+        console.error("[analytics] failed to load patterns", e)
+        if (!cancelled) setHabits([])
+      } finally {
+        if (!cancelled) setMounted(true)
       }
+    })()
+    return () => {
+      cancelled = true
     }
   }, [])
 

@@ -2,10 +2,10 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
+import { signOut } from "next-auth/react"
 import {
   Menu,
   Bell,
@@ -31,14 +31,10 @@ interface MenuSheetProps {
 
 export function MenuSheet({ notificationCount = 3 }: MenuSheetProps) {
   const [open, setOpen] = useState(false)
-  const router = useRouter()
 
-  const handleLogout = () => {
-    localStorage.removeItem("defaulted-habits-2025")
-    localStorage.removeItem("defaulted-goals-2025")
-    localStorage.removeItem("defaulted-onboarding-complete")
+  const handleLogout = async () => {
     setOpen(false)
-    router.push("/")
+    await signOut({ callbackUrl: "/" })
   }
 
   const menuItems = [

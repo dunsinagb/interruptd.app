@@ -16,7 +16,7 @@ import {
   Headphones,
 } from "lucide-react"
 import Link from "next/link"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 
 const featureComparison = [
   {
@@ -65,6 +65,49 @@ const featureComparison = [
 
 export default function SubscriptionPage() {
   const [selectedPlan, setSelectedPlan] = useState<"monthly" | "yearly">("yearly")
+  const [currentPlan, setCurrentPlan] = useState<"FREE" | "PRO">("FREE")
+  const [billingLoading, setBillingLoading] = useState(false)
+
+  // Load current subscription state
+  // (kept client-side so this page can stay "use client")
+  useEffect(() => {
+    ;(async () => {
+      try {
+        const res = await fetch("/api/subscription")
+        const data = (await res.json()) as { plan?: "FREE" | "PRO" }
+        if (res.ok && data.plan) setCurrentPlan(data.plan)
+      } catch {
+        // ignore
+      }
+    })()
+  }, [])
+
+  const handleBillingAction = async () => {
+    setBillingLoading(true)
+    try {
+      if (currentPlan === "PRO") {
+        const res = await fetch("/api/billing/portal", { method: "POST" })
+        const data = (await res.json()) as { url?: string; error?: string }
+        if (!res.ok || !data.url) throw new Error(data.error || "Unable to open billing portal")
+        window.location.href = data.url
+        return
+      }
+
+      const res = await fetch("/api/billing/checkout", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ plan: selectedPlan }),
+      })
+      const data = (await res.json()) as { url?: string; error?: string }
+      if (!res.ok || !data.url) throw new Error(data.error || "Unable to start checkout")
+      window.location.href = data.url
+    } catch (e) {
+      console.error("[billing] failed", e)
+      alert("Billing is not configured yet.")
+    } finally {
+      setBillingLoading(false)
+    }
+  }
 
   return (
     <main className="min-h-screen bg-background">
@@ -84,8 +127,10 @@ export default function SubscriptionPage() {
         <Card className="bg-muted/30 border-border">
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-4">
-              <span className="bg-foreground text-background text-xs font-semibold px-2 py-1 rounded">Free Plan</span>
-              <span className="text-sm text-muted-foreground">Level 1</span>
+              <span className="bg-foreground text-background text-xs font-semibold px-2 py-1 rounded">
+                {currentPlan === "PRO" ? "Pro Plan" : "Free Plan"}
+              </span>
+              <span className="text-sm text-muted-foreground">{currentPlan === "PRO" ? "Unlimited" : "Level 1"}</span>
             </div>
             <div className="grid grid-cols-3 gap-4">
               <div>
@@ -229,8 +274,14 @@ export default function SubscriptionPage() {
 
         {/* CTA Button */}
         <div className="space-y-3 pt-2">
-          <Button className="w-full h-12 text-base font-semibold bg-primary hover:bg-primary/90">
-            Upgrade to Pro — {selectedPlan === "yearly" ? "$48.00/year" : "$7.00/mo"}
+          <Button
+            className="w-full h-12 text-base font-semibold bg-primary hover:bg-primary/90"
+            onClick={handleBillingAction}
+            disabled={billingLoading}
+          >
+            {currentPlan === "PRO"
+              ? "Manage subscription"
+              : `Upgrade to Pro — ${selectedPlan === "yearly" ? "$48.00/year" : "$7.00/mo"}`}
           </Button>
           <p className="text-xs text-muted-foreground text-center">14-day money-back guarantee. Cancel anytime.</p>
         </div>

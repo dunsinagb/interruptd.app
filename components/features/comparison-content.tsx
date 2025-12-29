@@ -6,16 +6,25 @@ import { Button } from "@/components/ui/button"
 import { TrendingUp, TrendingDown, ArrowRight } from "lucide-react"
 import type { Habit } from "@/lib/habit-data"
 
-const STORAGE_KEY = "defaulted-habits-2025"
-
 export function ComparisonContent() {
   const [habits, setHabits] = useState<Habit[]>([])
   const [timeframe, setTimeframe] = useState<"month" | "quarter">("month")
 
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY)
-    if (saved) {
-      setHabits(JSON.parse(saved))
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch("/api/patterns")
+        const data = (await res.json()) as { patterns?: Habit[]; error?: string }
+        if (!res.ok) throw new Error(data.error || "Failed to load")
+        if (!cancelled) setHabits(data.patterns || [])
+      } catch (e) {
+        console.error("[comparison] failed to load patterns", e)
+        if (!cancelled) setHabits([])
+      }
+    })()
+    return () => {
+      cancelled = true
     }
   }, [])
 

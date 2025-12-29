@@ -28,3 +28,53 @@ Continue building your app on:
 2. Deploy your chats from the v0 interface
 3. Changes are automatically pushed to this repository
 4. Vercel deploys the latest version from this repository
+
+## SaaS MVP (Auth + DB + Billing)
+
+This repo now includes the core building blocks of a functional SaaS:
+
+- **Authentication**: email/password via NextAuth (Credentials) + Prisma adapter
+- **Database**: Prisma + SQLite (swap to Postgres later by changing `DATABASE_URL`)
+- **Per-user data**: patterns/defaults are stored server-side (no longer in `localStorage`)
+- **Subscriptions**: Free vs Pro entitlements (with optional Stripe Checkout + webhooks)
+
+### Local setup
+
+1. Copy env template:
+
+```bash
+cp .env.example .env
+```
+
+2. Set at minimum:
+   - `NEXTAUTH_SECRET`
+   - `NEXTAUTH_URL` (e.g. `http://localhost:3000`)
+   - `DATABASE_URL` (SQLite default is fine)
+
+3. Install deps and migrate DB:
+
+```bash
+pnpm install
+pnpm prisma migrate dev
+```
+
+4. Run:
+
+```bash
+pnpm dev
+```
+
+Then visit:
+- `/auth/signup` to create an account
+- `/dashboard` (protected) to use the app
+
+### Optional Stripe wiring
+
+Set these env vars to enable real checkout:
+- `STRIPE_SECRET_KEY`
+- `STRIPE_WEBHOOK_SECRET`
+- `STRIPE_PRICE_ID_PRO_MONTHLY`
+- `STRIPE_PRICE_ID_PRO_YEARLY`
+
+Webhook endpoint:
+- `POST /api/billing/webhook`

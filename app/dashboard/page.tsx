@@ -11,39 +11,7 @@ import { AddHabitModal } from "@/components/add-habit-modal"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { AnimatedBackground } from "@/components/animated-background"
 import { FadeIn, FadeInStagger, FadeInStaggerItem } from "@/components/motion-wrapper"
-import { type Habit, generateMockDefaultedDays } from "@/lib/habit-data"
-
-const STORAGE_KEY = "defaulted-habits-2025"
-
-const defaultHabitsData: Habit[] = [
-  {
-    id: "1",
-    name: "Social Media Scrolling",
-    description: "Mindless browsing on social platforms",
-    color: "rose",
-    createdAt: "2025-01-01",
-    defaultedDays: generateMockDefaultedDays(),
-    archived: false,
-  },
-  {
-    id: "2",
-    name: "Junk Food",
-    description: "Eating processed or unhealthy snacks",
-    color: "orange",
-    createdAt: "2025-01-01",
-    defaultedDays: generateMockDefaultedDays(),
-    archived: false,
-  },
-  {
-    id: "3",
-    name: "Late Night Screen Time",
-    description: "Using devices before bed",
-    color: "violet",
-    createdAt: "2025-01-01",
-    defaultedDays: generateMockDefaultedDays(),
-    archived: false,
-  },
-]
+import { type Habit } from "@/lib/habit-data"
 
 export default function Dashboard() {
   const [habits, setHabits] = useState<Habit[]>([])
@@ -52,31 +20,39 @@ export default function Dashboard() {
   const [showArchived, setShowArchived] = useState(false)
 
   useEffect(() => {
-    setMounted(true)
-    const saved = localStorage.getItem(STORAGE_KEY)
-    if (saved) {
-      setHabits(JSON.parse(saved))
-    } else {
-      setHabits(defaultHabitsData)
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultHabitsData))
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch("/api/patterns")
+        const data = (await res.json()) as { patterns?: Habit[]; error?: string }
+        if (!res.ok) throw new Error(data.error || "Failed to load patterns")
+        if (!cancelled) setHabits(data.patterns || [])
+      } catch (e) {
+        console.error("[dashboard] failed to load patterns", e)
+        if (!cancelled) setHabits([])
+      } finally {
+        if (!cancelled) setMounted(true)
+      }
+    })()
+    return () => {
+      cancelled = true
     }
   }, [])
 
-  useEffect(() => {
-    if (mounted && habits.length > 0) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(habits))
+  const handleAddHabit = async (habit: Omit<Habit, "id" | "createdAt" | "defaultedDays" | "archived">) => {
+    try {
+      const res = await fetch("/api/patterns", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(habit),
+      })
+      const data = (await res.json()) as { pattern?: Habit; error?: string }
+      if (!res.ok || !data.pattern) throw new Error(data.error || "Failed to create default")
+      setHabits((prev) => [...prev, data.pattern!])
+    } catch (e) {
+      console.error("[dashboard] failed to create pattern", e)
+      alert("Unable to add default. Please try again.")
     }
-  }, [habits, mounted])
-
-  const handleAddHabit = (habit: Omit<Habit, "id" | "createdAt" | "defaultedDays" | "archived">) => {
-    const newHabit: Habit = {
-      ...habit,
-      id: Date.now().toString(),
-      createdAt: new Date().toISOString().split("T")[0],
-      defaultedDays: [],
-      archived: false,
-    }
-    setHabits((prev) => [...prev, newHabit])
   }
 
   const visibleHabits = habits.filter((h) => (showArchived ? h.archived : !h.archived))

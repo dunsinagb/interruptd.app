@@ -10,7 +10,6 @@ import { type Habit, getHabitColor } from "@/lib/habit-data"
 import { Target, Plus, Check, Trophy, Loader2, X } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 
-const STORAGE_KEY = "defaulted-habits-2025"
 const GOALS_KEY = "defaulted-goals-2025"
 
 interface Goal {
@@ -34,13 +33,20 @@ function GoalsContent() {
 
   useEffect(() => {
     setMounted(true)
-    const savedHabits = localStorage.getItem(STORAGE_KEY)
     const savedGoals = localStorage.getItem(GOALS_KEY)
-    if (savedHabits) {
-      const parsed = JSON.parse(savedHabits).filter((h: Habit) => !h.archived)
-      setHabits(parsed)
-      if (parsed.length > 0) setSelectedHabitId(parsed[0].id)
-    }
+    ;(async () => {
+      try {
+        const res = await fetch("/api/patterns")
+        const data = (await res.json()) as { patterns?: Habit[]; error?: string }
+        if (!res.ok) throw new Error(data.error || "Failed to load")
+        const parsed = (data.patterns || []).filter((h) => !h.archived)
+        setHabits(parsed)
+        if (parsed.length > 0) setSelectedHabitId(parsed[0].id)
+      } catch (e) {
+        console.error("[goals] failed to load patterns", e)
+        setHabits([])
+      }
+    })()
     if (savedGoals) {
       setGoals(JSON.parse(savedGoals))
     }
